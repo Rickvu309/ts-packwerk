@@ -1,4 +1,4 @@
-import { existsSync, globSync, readFileSync } from "node:fs"
+import { existsSync, globSync, readFileSync, realpathSync } from "node:fs"
 import path from "node:path"
 import { parse, parseSync, type EcmaScriptModule } from "oxc-parser"
 import { ResolverFactory, type ResolveResult } from "oxc-resolver"
@@ -125,7 +125,8 @@ const extensionSwaps: Record<string, readonly string[]> = {
   ".d.ts": [".ts", ".tsx"],
 }
 
-export const openSetup = (root: string) => {
+export const openSetup = (given: string) => {
+  const root = realpathSync(given)
   const problems: string[] = []
   const config = readConfig(root, problems)
   const manifests = globSync(`**/${manifestFile}`, { cwd: root, exclude: (entry) => skipDirectory(entry) })
@@ -297,7 +298,7 @@ export const openSetup = (root: string) => {
     .map((found) => posix(path.relative(root, found.directory)) || ".")
     .sort()
 
-  return { problems, config, packs, files, fileSet, targetOf, targetOfSync, ownerOf, tableUsesOf, allPackageRoots }
+  return { root, problems, config, packs, files, fileSet, targetOf, targetOfSync, ownerOf, tableUsesOf, allPackageRoots }
 }
 
 const referencesOf = (
@@ -317,8 +318,8 @@ const referencesOf = (
   }))
 }
 
-export const loadWorkspace = async (root: string): Promise<Workspace> => {
-  const { problems, config, packs, files, fileSet, targetOf, ownerOf, tableUsesOf } = openSetup(root)
+export const loadWorkspace = async (given: string): Promise<Workspace> => {
+  const { root, problems, config, packs, files, fileSet, targetOf, ownerOf, tableUsesOf } = openSetup(given)
   const packageRoots = new Set<string>()
   const tableUses: TableUse[] = []
   const perFile = await Promise.all(

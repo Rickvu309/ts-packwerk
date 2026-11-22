@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, symlinkSync } from "node:fs"
+import { tmpdir } from "node:os"
+import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { app, makeRepo, type Repo } from "./fixture.ts"
 import { tableUsesIn } from "./tables.ts"
@@ -124,5 +127,20 @@ describe("owns_tables", () => {
       "apps/web/src/editor/pack.yml": "layer: feature\ndependencies: [apps/web/src/kit]\nowns_tables: [app.theme]\n",
     })
     expect(workspace.problems).toEqual(["app.theme is owned by both apps/web/src/editor and apps/web/src/kit"])
+  })
+})
+
+describe("a repository reached through a symlink", () => {
+  it("resolves imports to files inside it, as macOS temp folders need", async () => {
+    repo = makeRepo({ ...app })
+    repo.link("apps/web/node_modules/@acme/core", "packages/core")
+    const linked = path.join(mkdtempSync(path.join(tmpdir(), "ts-packwerk-link-")), "repo")
+    symlinkSync(repo.root, linked, "dir")
+    const workspace = await loadWorkspace(linked)
+    expect(reference(workspace, "apps/web/src/editor/editor.ts", "../kit/index.js")?.target).toEqual({
+      kind: "file",
+      file: "apps/web/src/kit/index.ts",
+    })
+    rmSync(path.dirname(linked), { recursive: true, force: true })
   })
 })
