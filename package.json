@@ -1,0 +1,67 @@
+{
+  "name": "ts-packwerk",
+  "version": "0.1.0",
+  "description": "Packs for TypeScript: dependencies, privacy, layers, named interfaces and table ownership, checked in under a second. After Shopify's Packwerk.",
+  "keywords": [
+    "packwerk",
+    "modular monolith",
+    "architecture",
+    "boundaries",
+    "monorepo",
+    "typescript",
+    "oxc",
+    "lint"
+  ],
+  "homepage": "https://github.com/Rickvu309/ts-packwerk#readme",
+  "bugs": {
+    "url": "https://github.com/Rickvu309/ts-packwerk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rickvu309/ts-packwerk.git"
+  },
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "ts-packwerk": "./bin/ts-packwerk.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./lint": {
+      "types": "./dist/lint.d.ts",
+      "import": "./dist/lint.js"
+    }
+  },
+  "files": [
+    "bin",
+    "dist",
+    "!dist/**/*.test.*",
+    "!dist/fixture.*",
+    "!dist/tsconfig.tsbuildinfo",
+    "LICENSE",
+    "README.md",
+    "action.yml"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "test": "vitest run src",
+    "prepack": "rm -rf dist && tsc -p tsconfig.release.json"
+  },
+  "dependencies": {
+    "oxc-parser": "^0.157.0",
+    "oxc-resolver": "^11.24.2",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}

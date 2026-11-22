@@ -1,0 +1,23 @@
+name: ts-packwerk
+description: Check TypeScript packs and report new violations to code scanning.
+inputs:
+  version:
+    description: ts-packwerk version to run
+    default: latest
+runs:
+  using: composite
+  steps:
+    - name: Check packs
+      shell: bash
+      run: |
+        set +e
+        npx --yes "ts-packwerk@${{ inputs.version }}" check --sarif > ts-packwerk.sarif
+        echo "status=$?" >> "$GITHUB_ENV"
+    - name: Upload findings
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ts-packwerk.sarif
+        category: ts-packwerk
+    - name: Fail on new violations
+      shell: bash
+      run: exit "${status}"
