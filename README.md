@@ -72,7 +72,7 @@ dependencies: [packages/mcp#runtime] # may not import the evals interface
 
 `dependency`, `privacy`, `interface`, `layer`, `table` and `public_type` violations can be recorded in a pack's `pack_todo.yml`. A recorded violation passes; a fixed one still listed fails as stale until `update-todo` removes it. `update-todo` never records a new violation, so the file only shrinks.
 
-Type-only imports count, since they couple packs too. Dynamic `import()` counts when its argument is a string literal.
+Type-only imports count, since they couple packs too. Dynamic `import()` counts when its argument is a string literal. `import.meta.glob` counts once per included file its string-literal patterns match, relative to the importing file; a `!` pattern excludes.
 
 ## In the editor
 
@@ -95,7 +95,7 @@ Measured on Linux x64, Node 26: 0.75 s for a 1,400-file monorepo (10.7 MB of sou
 
 ## Limits
 
-- `import(variable)` is not checked; a string-literal `import()` is.
+- `import(variable)` and `import.meta.glob(variable)` are not checked; string literals are. A glob pattern that starts with `/` or an alias is not expanded.
 - `.astro`, `.vue` and `.svelte` files are not read.
 - Yarn Plug'n'Play is untested.
 

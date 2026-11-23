@@ -3,6 +3,7 @@ import path from "node:path"
 import { parse, parseSync, type EcmaScriptModule } from "oxc-parser"
 import { ResolverFactory, type ResolveResult } from "oxc-resolver"
 import { exportTarget } from "./package-exports.ts"
+import { globRequestsIn } from "./globs.ts"
 import { lineStarts, position } from "./positions.ts"
 import { typeGapsIn, type TypeGap } from "./public-types.ts"
 import { tableUsesIn, type TableUse } from "./tables.ts"
@@ -101,6 +102,20 @@ const requestsFrom = (module: EcmaScriptModule, source: string): Request[] => {
   }
   return requests
 }
+
+const allRequests = (
+  file: string,
+  source: string,
+  parsed: { module: EcmaScriptModule; program: unknown },
+  files: readonly string[],
+): Request[] => [
+  ...requestsFrom(parsed.module, source),
+  ...globRequestsIn(file, source, () => parsed.program, files).map((glob) => ({
+    ...glob,
+    typeOnly: false,
+    reexport: false,
+  })),
+]
 
 const jsonc = (text: string): string =>
   text
@@ -327,7 +342,7 @@ export const loadWorkspace = async (given: string): Promise<Workspace> => {
       const owner = ownerOf(file)
       if (owner !== undefined) packageRoots.add(owner)
       const source = readFileSync(path.join(root, file), "utf8")
-      const requests = requestsFrom((await parse(file, source)).module, source)
+      const requests = allRequests(file, source, await parse(file, source), files)
       tableUses.push(...tableUsesOf(file, source))
       const targets = await Promise.all(requests.map((request) => targetOf(file, request.specifier)))
       return referencesOf(file, source, requests, targets)
@@ -373,7 +388,7 @@ export const fileWorkspace = (root: string, file: string, text?: string): Worksp
   setups.set(root, setup)
   const { problems, config, packs, targetOfSync, tableUsesOf, allPackageRoots } = setup
   const source = text ?? readFileSync(path.join(root, file), "utf8")
-  const requests = requestsFrom(parseSync(file, source).module, source)
+  const requests = allRequests(file, source, parseSync(file, source), setup.files)
   const targets = requests.map((request) => targetOfSync(file, request.specifier))
   return {
     root,

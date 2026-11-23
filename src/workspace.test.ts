@@ -94,6 +94,35 @@ describe("loadWorkspace", () => {
   })
 })
 
+describe("import.meta.glob", () => {
+  it("adds a reference for each included file a literal pattern matches", async () => {
+    const workspace = await open({
+      "packwerk.yml": `${app["packwerk.yml"]}exclude: ["**/old-*.ts"]\n`,
+      "apps/web/src/routes.ts": [
+        'const screens = import.meta.glob<{ a: 1 }>("./**/*-screens.ts", { eager: true })',
+        'const kit = import.meta.glob(["./kit/*.ts", "!./kit/theme.ts"])',
+        'const near = import.meta.glob("./*.ts")',
+        "const name = `./${String(screens)}`",
+        "export const loose = [kit, near, import.meta.glob(name)]",
+      ].join("\n"),
+      "apps/web/src/editor/editor-screens.ts": "export const screens = {}\n",
+      "apps/web/src/kit/old-screens.ts": "export const screens = {}\n",
+    })
+    const found = workspace.references
+      .filter((item) => item.file === "apps/web/src/routes.ts")
+      .map((item) => [
+        item.specifier,
+        `${String(item.line)}:${String(item.column)}`,
+        item.target.kind === "file" ? item.target.file : item.target.kind,
+      ])
+    expect(found).toEqual([
+      ["./editor/editor-screens.ts", "1:44", "apps/web/src/editor/editor-screens.ts"],
+      ["./kit/index.ts", "2:31", "apps/web/src/kit/index.ts"],
+      ["./main.ts", "3:31", "apps/web/src/main.ts"],
+    ])
+  })
+})
+
 describe("tableUsesIn", () => {
   it("finds a table only inside string and template literals, never in member access", () => {
     const source = [
