@@ -1,4 +1,4 @@
-import { referenceLoops, type Finding, type Loop } from "./rules.ts"
+import { type Finding, type Loop } from "./rules.ts"
 import { isPublic, packageRootOf, packOf, type Pack, type Workspace } from "./workspace.ts"
 
 export const unitOf = (workspace: Workspace, file: string): string | undefined =>
@@ -83,30 +83,15 @@ export const docs = (workspace: Workspace): string => {
       if (names.has(dependency)) lines.push(`  ${nodeId(pack.name)} --> ${nodeId(dependency)}`)
     }
   }
-  lines.push(
-    "```",
-    "",
-    "| Pack | Layer | Public | Unused public | Dependencies | Tables | Loop |",
-    "| --- | --- | --- | --- | --- | --- | --- |",
-  )
-  const loops = referenceLoops(workspace)
-  const unused = unusedPublic(workspace)
-  const loopOf = (pack: Pack): string => {
-    const at = loops.findIndex((loop) => loop.packs.includes(pack.name))
-    return at < 0 ? "none" : String(at + 1)
-  }
+  lines.push("```", "", "| Pack | Layer | Public | Dependencies | Tables |", "| --- | --- | --- | --- | --- |")
   for (const pack of workspace.packs) {
     const faces = [...pack.interfaces].map(([face, paths]) =>
       face === "default" ? cell(paths.map((file) => file.slice(pack.name.length + 1))) : `${face}: ${cell(paths)}`,
     )
     lines.push(
-      `| \`${pack.name}\` | ${pack.layer ?? "none"} | ${faces.join("; ") || "none"} | ${String(unused.get(pack.name)?.length ?? 0)} | ${cell(pack.dependencies)} | ${cell(
-        pack.ownsTables,
-      )} | ${loopOf(pack)} |`,
+      `| \`${pack.name}\` | ${pack.layer ?? "none"} | ${faces.join("; ") || "none"} | ${cell(pack.dependencies)} | ${cell(pack.ownsTables)} |`,
     )
   }
-  if (loops.length > 0)
-    lines.push("", "## Loops", "", ...loops.map((loop, at) => `${String(at + 1)}. ${loopMembers(loop)}`))
   return `${lines.join("\n")}\n`
 }
 

@@ -140,8 +140,8 @@ describe("docs", () => {
     expect((await run("docs", "--out", "packs.md")).code).toBe(0)
     const page = readFileSync(path.join(repo.root, "packs.md"), "utf8")
     expect(page).toContain("  p_apps_web_src_editor --> p_apps_web_src_kit")
-    expect(page).toContain("| Pack | Layer | Public | Unused public | Dependencies | Tables | Loop |")
-    expect(page).toContain("| `apps/web/src/kit` | platform | index.ts, theme.ts | 0 | none | none | none |")
+    expect(page).toContain("| Pack | Layer | Public | Dependencies | Tables |")
+    expect(page).toContain("| `apps/web/src/kit` | platform | index.ts, theme.ts | none | none |")
     expect(page).not.toContain("## Loops")
     expect((await run("docs", "--out", "packs.md", "--check")).code).toBe(0)
     repo.write("apps/web/src/kit/pack.yml", "layer: feature\npublic: [index.ts, theme.ts]\n")
@@ -150,22 +150,23 @@ describe("docs", () => {
   })
 })
 
-describe("docs loops", () => {
-  it("names the loop each pack is in and lists every loop", async () => {
-    open({
-      "apps/web/src/kit/index.ts":
-        'import { Editor } from "../editor/index.js"\nexport const button = "button"\nexport const both = Editor\n',
-    })
+describe("docs stays declared", () => {
+  it("does not change when only imports change, so a new import never makes the page stale", async () => {
+    open()
     expect((await run("docs", "--out", "packs.md")).code).toBe(0)
+    repo.write(
+      "apps/web/src/kit/index.ts",
+      'import { Editor } from "../editor/index.js"\nexport const button = "button"\nexport const both = Editor\n',
+    )
+    expect((await run("docs", "--out", "packs.md", "--check")).code).toBe(0)
     const page = readFileSync(path.join(repo.root, "packs.md"), "utf8")
-    expect(page).toContain("| `apps/web/src/kit` | platform | index.ts, theme.ts | 0 | none | none | 1 |")
-    expect(page).toContain("| `apps/web/src` | app | none | 0 | apps/web/src/editor, apps/web/src/kit | none | none |")
-    expect(page).toContain("## Loops\n\n1. apps/web/src/editor, apps/web/src/kit (2 packs)\n")
+    expect(page).not.toContain("Loop")
+    expect(page).not.toContain("Unused public")
   })
 })
 
 describe("unused public paths", () => {
-  it("lists public files no other pack references, in explain and as a count in docs", async () => {
+  it("lists public files no other pack references in explain", async () => {
     open({
       "apps/web/src/kit/pack.yml": "layer: platform\npublic: [index.ts, theme.ts, spare.ts]\n",
       "apps/web/src/kit/spare.ts": "export const spare = 1\n",
@@ -174,10 +175,6 @@ describe("unused public paths", () => {
     const explained = await run("explain", "apps/web/src/kit")
     expect(explained.out).toContain("unused public: apps/web/src/kit/spare.ts")
     expect((await run("explain", "apps/web/src/editor")).out).toContain("unused public: none")
-    expect((await run("docs", "--out", "packs.md")).code).toBe(0)
-    expect(readFileSync(path.join(repo.root, "packs.md"), "utf8")).toContain(
-      "| `apps/web/src/kit` | platform | index.ts, theme.ts, spare.ts | 1 | none | none | none |",
-    )
   })
 })
 

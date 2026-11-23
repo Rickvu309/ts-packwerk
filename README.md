@@ -20,7 +20,7 @@ ts-packwerk update-todo                # remove fixed violations from pack_todo.
 ts-packwerk update-todo --all          # record every violation, once, when adopting packs
 ts-packwerk explain <pack>             # what a pack enforces, exposes, uses and is used by
 ts-packwerk affected [files...]        # packs a change reaches; without files, the diff from --base (origin/main)
-ts-packwerk docs --out packs.md        # a page of every pack; add --check to fail when it is stale
+ts-packwerk docs --out packs.md        # a page of what every pack declares; add --check to fail when it is stale
 ```
 
 ## packwerk.yml
@@ -72,9 +72,9 @@ dependencies: [packages/mcp#runtime] # may not import the evals interface
 
 `dependency`, `privacy`, `interface`, `layer`, `table` and `public_type` violations can be recorded in a pack's `pack_todo.yml`. A recorded violation passes; a fixed one still listed fails as stale until `update-todo` removes it. `update-todo` never records a new violation, so the file only shrinks.
 
-`check` also names, after its summary, each loop the real references make between packs of one package, and whether known violations, new ones or unchecked uses close it. A loop is reported, not failed: its undeclared uses are already `dependency` violations, and a loop of declared dependencies fails as `cycle`. `explain` and `docs` show the loop a pack is in.
+`check` also names, after its summary, each loop the real references make between packs of one package, and whether known violations, new ones or unchecked uses close it. A loop is reported, not failed: its undeclared uses are already `dependency` violations, and a loop of declared dependencies fails as `cycle`. `explain` shows the loop a pack is in.
 
-A public file that no other pack references is listed by `explain` and counted by `docs`, so a public list can shrink to what other packs use. It is reported, not failed.
+A public file that no other pack references is listed by `explain`, so a public list can shrink to what other packs use. It is reported, not failed.
 
 Type-only imports count, since they couple packs too. Dynamic `import()` counts when its argument is a string literal. `import.meta.glob` counts once per included file its string-literal patterns match, relative to the importing file; a `!` pattern excludes.
 

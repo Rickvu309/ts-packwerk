@@ -3,8 +3,9 @@
 ## 0.1.2
 
 - `import.meta.glob` with string-literal patterns adds one reference per included file it matches, relative to the importing file; `!` patterns exclude.
-- `check` names each loop the real references make between packs of one package, after its summary, and whether known violations, new ones or unchecked uses close it. `explain` and `docs` show the loop a pack is in. Loops are reported, not failed.
-- `explain` lists public files no other pack references, and `docs` counts them per pack.
+- `check` names each loop the real references make between packs of one package, after its summary, and whether known violations, new ones or unchecked uses close it. `explain` shows the loop a pack is in. Loops are reported, not failed.
+- `explain` lists public files no other pack references.
+- `docs` describes only what packs declare, so a new import never makes the page stale.
 - A repository reached through a symlink resolves to its real path, so its imports are checked.
 
 ## 0.1.0
