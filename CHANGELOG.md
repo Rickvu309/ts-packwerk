@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- The `docs` page says it is written from every `pack.yml`, which is what it reads since 0.1.2.
+
 ## 0.1.2
 
 - `import.meta.glob` with string-literal patterns adds one reference per included file it matches, relative to the importing file; `!` patterns exclude.
