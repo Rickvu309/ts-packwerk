@@ -59,7 +59,7 @@ export const docs = (workspace: Workspace): string => {
   const lines = [
     "# Packs",
     "",
-    "`ts-packwerk docs --out` writes this page from every `pack.yml` and import, and `ts-packwerk docs --check` fails when it is stale.",
+    "`ts-packwerk docs --out` writes this page from every `pack.yml`, and `ts-packwerk docs --check` fails when it is stale.",
     "",
     "```mermaid",
     "flowchart TD",
