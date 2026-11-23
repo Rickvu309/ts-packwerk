@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { dependencyCycles, findings } from "./rules.ts"
+import { dependencyCycles, findings, referenceLoops } from "./rules.ts"
 import type { Pack, Reference, Workspace } from "./workspace.ts"
 
 const pack = (name: string, extra: Partial<Pack> = {}): Pack => ({
@@ -142,5 +142,31 @@ describe("dependencyCycles", () => {
       pack("e", { dependencies: ["e"] }),
     ])
     expect(cycles).toEqual([["a", "b", "c"], ["e"]])
+  })
+})
+
+describe("referenceLoops", () => {
+  it("finds packs whose real references form a loop, with the uses no pack.yml declares", () => {
+    const space = workspace(
+      [
+        pack("app/a", { dependencies: ["app/b"] }),
+        pack("app/b", { dependencies: ["app/c"] }),
+        pack("app/c"),
+        pack("app/d", { dependencies: ["app/e"] }),
+        pack("app/e", { dependencies: ["app/d"] }),
+        pack("lib/f"),
+      ],
+      [
+        uses("app/a/x.ts", "app/b/index.ts"),
+        uses("app/b/x.ts", "app/c/index.ts"),
+        uses("app/c/x.ts", "app/a/index.ts"),
+        uses("app/d/x.ts", "app/e/index.ts"),
+        uses("app/e/x.ts", "app/d/index.ts"),
+        uses("app/c/x.ts", "lib/f/index.ts", "@acme/f"),
+        uses("lib/f/x.ts", "app/c/index.ts", "@acme/c"),
+      ],
+      ["app", "lib/f"],
+    )
+    expect(referenceLoops(space)).toEqual([{ packs: ["app/a", "app/b", "app/c"], undeclared: [["app/c", "app/a"]] }])
   })
 })

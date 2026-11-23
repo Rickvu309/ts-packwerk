@@ -1,10 +1,10 @@
 import { execFileSync } from "node:child_process"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
-import { affected, docs, sarif, starterConfig } from "./report.ts"
-import { findings, todoRules, type Finding } from "./rules.ts"
-import { judge, readTodos, writeTodos } from "./todo.ts"
-import { configFile, loadWorkspace, packOf, type Workspace } from "./workspace.ts"
+import { affected, docs, loopMembers, sarif, starterConfig } from "./report.ts"
+import { findings, referenceLoops, todoRules, type Finding, type Loop } from "./rules.ts"
+import { judge, readTodos, writeTodos, type Verdict } from "./todo.ts"
+import { configFile, loadWorkspace, packOf, type Pack, type Workspace } from "./workspace.ts"
 
 type Io = { readonly out: (line: string) => void; readonly err: (line: string) => void }
 
@@ -33,6 +33,20 @@ const counted = (items: readonly string[]): string[] => {
   return [...counts]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([item, count]) => `${item} (${String(count)})`)
+}
+
+const closedBy = (loop: Loop, verdict: Verdict): string => {
+  const closing = ([from, to]: readonly [string, string]) => (finding: Finding) =>
+    finding.rule === "dependency" && finding.fromPack === from && finding.toPack === to
+  if (loop.undeclared.some((edge) => verdict.fresh.some(closing(edge)))) return "new violations"
+  return loop.undeclared.every((edge) => verdict.listed.some(closing(edge))) ? "known violations" : "unchecked uses"
+}
+
+const loopLines = (workspace: Workspace, pack: Pack): string[] => {
+  const loop = referenceLoops(workspace).find((item) => item.packs.includes(pack.name))
+  if (loop === undefined) return ["loop: none"]
+  const undeclared = loop.undeclared.filter(([from]) => from === pack.name).map(([, to]) => to)
+  return [`loop: ${loopMembers(loop)}`, `undeclared in the loop: ${undeclared.join(", ") || "none"}`]
 }
 
 const explain = (workspace: Workspace, name: string, io: Io): number => {
@@ -70,6 +84,7 @@ const explain = (workspace: Workspace, name: string, io: Io): number => {
     `declared dependencies: ${pack.dependencies.join(", ") || "none"}`,
     `uses: ${counted(outgoing).join(", ") || "nothing"}`,
     `used by: ${counted(incoming).join(", ") || "nothing"}`,
+    ...loopLines(workspace, pack),
     `open todos: ${String(todos.length)}`,
   ]) {
     io.out(text)
@@ -190,6 +205,7 @@ export const runCli = async (argv: readonly string[], io: Io): Promise<number> =
     io.out(
       `${String(workspace.files.length)} files, ${String(workspace.packs.length)} packs, ${String(verdict.fresh.length)} new violations, ${String(verdict.stale.length)} stale todos, ${String(verdict.listed.length)} known, ${seconds} s`,
     )
+    for (const loop of referenceLoops(workspace)) io.out(`loop through ${closedBy(loop, verdict)}: ${loopMembers(loop)}`)
   }
   return verdict.fresh.length === 0 && verdict.stale.length === 0 ? 0 : 1
 }

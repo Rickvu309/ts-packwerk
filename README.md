@@ -72,6 +72,8 @@ dependencies: [packages/mcp#runtime] # may not import the evals interface
 
 `dependency`, `privacy`, `interface`, `layer`, `table` and `public_type` violations can be recorded in a pack's `pack_todo.yml`. A recorded violation passes; a fixed one still listed fails as stale until `update-todo` removes it. `update-todo` never records a new violation, so the file only shrinks.
 
+`check` also names, after its summary, each loop the real references make between packs of one package, and whether known violations, new ones or unchecked uses close it. A loop is reported, not failed: its undeclared uses are already `dependency` violations, and a loop of declared dependencies fails as `cycle`. `explain` and `docs` show the loop a pack is in.
+
 Type-only imports count, since they couple packs too. Dynamic `import()` counts when its argument is a string literal. `import.meta.glob` counts once per included file its string-literal patterns match, relative to the importing file; a `!` pattern excludes.
 
 ## In the editor

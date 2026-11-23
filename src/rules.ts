@@ -172,13 +172,12 @@ const publicTypeFindings = (workspace: Workspace): Finding[] =>
     }
   })
 
-export const dependencyCycles = (packs: readonly Pack[]): string[][] => {
-  const byName = new Map(packs.map((pack) => [pack.name, pack]))
+const stronglyConnected = (nodes: readonly string[], next: (node: string) => readonly string[]): string[][] => {
   const index = new Map<string, number>()
   const low = new Map<string, number>()
   const stack: string[] = []
   const onStack = new Set<string>()
-  const cycles: string[][] = []
+  const components: string[][] = []
   let counter = 0
   const visit = (name: string): void => {
     index.set(name, counter)
@@ -186,13 +185,12 @@ export const dependencyCycles = (packs: readonly Pack[]): string[][] => {
     counter += 1
     stack.push(name)
     onStack.add(name)
-    for (const next of byName.get(name)?.dependencies ?? []) {
-      if (!byName.has(next)) continue
-      if (!index.has(next)) {
-        visit(next)
-        low.set(name, Math.min(low.get(name) ?? 0, low.get(next) ?? 0))
-      } else if (onStack.has(next)) {
-        low.set(name, Math.min(low.get(name) ?? 0, index.get(next) ?? 0))
+    for (const other of next(name)) {
+      if (!index.has(other)) {
+        visit(other)
+        low.set(name, Math.min(low.get(name) ?? 0, low.get(other) ?? 0))
+      } else if (onStack.has(other)) {
+        low.set(name, Math.min(low.get(name) ?? 0, index.get(other) ?? 0))
       }
     }
     if (low.get(name) !== index.get(name)) return
@@ -204,11 +202,50 @@ export const dependencyCycles = (packs: readonly Pack[]): string[][] => {
       onStack.delete(member)
       component.push(member)
     } while (member !== name)
-    const selfLoop = byName.get(name)?.dependencies.includes(name) ?? false
-    if (component.length > 1 || selfLoop) cycles.push(component.sort())
+    components.push(component.sort())
   }
-  for (const pack of packs) if (!index.has(pack.name)) visit(pack.name)
-  return cycles.sort((left, right) => (left[0] ?? "").localeCompare(right[0] ?? ""))
+  for (const node of nodes) if (!index.has(node)) visit(node)
+  return components.sort((left, right) => (left[0] ?? "").localeCompare(right[0] ?? ""))
+}
+
+export const dependencyCycles = (packs: readonly Pack[]): string[][] => {
+  const byName = new Map(packs.map((pack) => [pack.name, pack]))
+  const next = (name: string) => (byName.get(name)?.dependencies ?? []).filter((other) => byName.has(other))
+  return stronglyConnected(
+    packs.map((pack) => pack.name),
+    next,
+  ).filter((component) => component.length > 1 || next(component[0] ?? "").includes(component[0] ?? ""))
+}
+
+export type Loop = {
+  readonly packs: readonly string[]
+  readonly undeclared: readonly (readonly [from: string, to: string])[]
+}
+
+const samePackageUses = (workspace: Workspace): Map<string, Set<string>> => {
+  const edges = new Map<string, Set<string>>()
+  for (const { reference, target, from, to } of crossPack(workspace)) {
+    if (packageRootOf(workspace.packageRoots, reference.file) !== packageRootOf(workspace.packageRoots, target)) continue
+    edges.set(from.name, (edges.get(from.name) ?? new Set()).add(to.name))
+  }
+  return edges
+}
+
+export const referenceLoops = (workspace: Workspace): Loop[] => {
+  const edges = samePackageUses(workspace)
+  const declared = new Map(workspace.packs.map((pack) => [pack.name, new Set(pack.dependencies)]))
+  return stronglyConnected([...edges.keys()].sort(), (name) => [...(edges.get(name) ?? [])].sort()).flatMap(
+    (packs) => {
+      const members = new Set(packs)
+      const undeclared = packs.flatMap((from) =>
+        [...(edges.get(from) ?? [])]
+          .filter((to) => members.has(to) && declared.get(from)?.has(to) !== true)
+          .sort()
+          .map((to) => [from, to] as const),
+      )
+      return packs.length > 1 && undeclared.length > 0 ? [{ packs, undeclared }] : []
+    },
+  )
 }
 
 const cycleFindings = (workspace: Workspace): Finding[] =>

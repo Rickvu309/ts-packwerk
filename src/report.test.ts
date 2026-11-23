@@ -140,12 +140,26 @@ describe("docs", () => {
     expect((await run("docs", "--out", "packs.md")).code).toBe(0)
     const page = readFileSync(path.join(repo.root, "packs.md"), "utf8")
     expect(page).toContain("  p_apps_web_src_editor --> p_apps_web_src_kit")
-    expect(page).toContain("| Pack | Layer | Public | Dependencies | Tables |")
-    expect(page).toContain("| `apps/web/src/kit` | platform | index.ts, theme.ts | none | none |")
+    expect(page).toContain("| Pack | Layer | Public | Dependencies | Tables | Loop |")
+    expect(page).toContain("| `apps/web/src/kit` | platform | index.ts, theme.ts | none | none | none |")
+    expect(page).not.toContain("## Loops")
     expect((await run("docs", "--out", "packs.md", "--check")).code).toBe(0)
     repo.write("apps/web/src/kit/pack.yml", "layer: feature\npublic: [index.ts, theme.ts]\n")
     const stale = await run("docs", "--out", "packs.md", "--check")
     expect([stale.code, stale.out]).toEqual([1, "packs.md is stale; run ts-packwerk docs --out packs.md"])
+  })
+})
+
+describe("docs loops", () => {
+  it("names the loop each pack is in and lists every loop", async () => {
+    open({
+      "apps/web/src/kit/index.ts": 'import { Editor } from "../editor/index.js"\nexport const button = "button"\nexport const both = Editor\n',
+    })
+    expect((await run("docs", "--out", "packs.md")).code).toBe(0)
+    const page = readFileSync(path.join(repo.root, "packs.md"), "utf8")
+    expect(page).toContain("| `apps/web/src/kit` | platform | index.ts, theme.ts | none | none | 1 |")
+    expect(page).toContain("| `apps/web/src` | app | none | apps/web/src/editor, apps/web/src/kit | none | none |")
+    expect(page).toContain("## Loops\n\n1. apps/web/src/editor, apps/web/src/kit (2 packs)\n")
   })
 })
 

@@ -1,4 +1,4 @@
-import type { Finding } from "./rules.ts"
+import { referenceLoops, type Finding, type Loop } from "./rules.ts"
 import { packageRootOf, packOf, type Pack, type Workspace } from "./workspace.ts"
 
 export const unitOf = (workspace: Workspace, file: string): string | undefined =>
@@ -34,6 +34,8 @@ export const affectedDistances = (workspace: Workspace, changed: readonly string
 export const affected = (workspace: Workspace, changed: readonly string[]): string[] =>
   [...affectedDistances(workspace, changed).keys()].sort()
 
+export const loopMembers = (loop: Loop): string => `${loop.packs.join(", ")} (${String(loop.packs.length)} packs)`
+
 const nodeId = (name: string): string => `p_${name.replace(/[^A-Za-z0-9]/g, "_")}`
 
 const cell = (items: readonly string[]): string => (items.length === 0 ? "none" : items.join(", "))
@@ -42,7 +44,7 @@ export const docs = (workspace: Workspace): string => {
   const lines = [
     "# Packs",
     "",
-    "`ts-packwerk docs --out` writes this page from every `pack.yml`, and `ts-packwerk docs --check` fails when it is stale.",
+    "`ts-packwerk docs --out` writes this page from every `pack.yml` and import, and `ts-packwerk docs --check` fails when it is stale.",
     "",
     "```mermaid",
     "flowchart TD",
@@ -66,7 +68,17 @@ export const docs = (workspace: Workspace): string => {
       if (names.has(dependency)) lines.push(`  ${nodeId(pack.name)} --> ${nodeId(dependency)}`)
     }
   }
-  lines.push("```", "", "| Pack | Layer | Public | Dependencies | Tables |", "| --- | --- | --- | --- | --- |")
+  lines.push(
+    "```",
+    "",
+    "| Pack | Layer | Public | Dependencies | Tables | Loop |",
+    "| --- | --- | --- | --- | --- | --- |",
+  )
+  const loops = referenceLoops(workspace)
+  const loopOf = (pack: Pack): string => {
+    const at = loops.findIndex((loop) => loop.packs.includes(pack.name))
+    return at < 0 ? "none" : String(at + 1)
+  }
   for (const pack of workspace.packs) {
     const faces = [...pack.interfaces].map(([face, paths]) =>
       face === "default" ? cell(paths.map((file) => file.slice(pack.name.length + 1))) : `${face}: ${cell(paths)}`,
@@ -74,9 +86,10 @@ export const docs = (workspace: Workspace): string => {
     lines.push(
       `| \`${pack.name}\` | ${pack.layer ?? "none"} | ${faces.join("; ") || "none"} | ${cell(pack.dependencies)} | ${cell(
         pack.ownsTables,
-      )} |`,
+      )} | ${loopOf(pack)} |`,
     )
   }
+  if (loops.length > 0) lines.push("", "## Loops", "", ...loops.map((loop, at) => `${String(at + 1)}. ${loopMembers(loop)}`))
   return `${lines.join("\n")}\n`
 }
 

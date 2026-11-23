@@ -72,6 +72,23 @@ describe("check and update-todo", () => {
     expect((await run("check")).out).toContain("0 new violations, 0 stale todos, 1 known")
   })
 
+  it("names a loop of real references after the summary, and the loop in explain", async () => {
+    repo = makeRepo({
+      ...app,
+      "apps/web/src/kit/index.ts": 'import { Editor } from "../editor/index.js"\nexport const button = "button"\nexport const both = Editor\n',
+    })
+    repo.link("apps/web/node_modules/@acme/core", "packages/core")
+    expect((await run("update-todo", "--all")).code).toBe(0)
+    const checked = await run("check")
+    expect(checked.code).toBe(0)
+    expect(checked.out.split("\n").slice(-1)).toEqual([
+      "loop through known violations: apps/web/src/editor, apps/web/src/kit (2 packs)",
+    ])
+    const explained = await run("explain", "apps/web/src/kit")
+    expect(explained.out).toContain("loop: apps/web/src/editor, apps/web/src/kit (2 packs)")
+    expect(explained.out).toContain("undeclared in the loop: apps/web/src/editor")
+  })
+
   it("explains a pack for an agent about to change it", async () => {
     repo = makeRepo(app)
     repo.link("apps/web/node_modules/@acme/core", "packages/core")
