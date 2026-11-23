@@ -1,5 +1,5 @@
 import { referenceLoops, type Finding, type Loop } from "./rules.ts"
-import { packageRootOf, packOf, type Pack, type Workspace } from "./workspace.ts"
+import { isPublic, packageRootOf, packOf, type Pack, type Workspace } from "./workspace.ts"
 
 export const unitOf = (workspace: Workspace, file: string): string | undefined =>
   packOf(workspace.packs, file)?.name ?? packageRootOf(workspace.packageRoots, file)
@@ -33,6 +33,21 @@ export const affectedDistances = (workspace: Workspace, changed: readonly string
 
 export const affected = (workspace: Workspace, changed: readonly string[]): string[] =>
   [...affectedDistances(workspace, changed).keys()].sort()
+
+export const unusedPublic = (workspace: Workspace): Map<string, string[]> => {
+  const usedFromOutside = new Set<string>()
+  for (const reference of workspace.references) {
+    if (reference.target.kind !== "file") continue
+    if (packOf(workspace.packs, reference.file) !== packOf(workspace.packs, reference.target.file))
+      usedFromOutside.add(reference.target.file)
+  }
+  const unused = new Map(workspace.packs.map((pack) => [pack.name, [] as string[]]))
+  for (const file of workspace.files) {
+    const pack = packOf(workspace.packs, file)
+    if (pack !== undefined && isPublic(pack, file) && !usedFromOutside.has(file)) unused.get(pack.name)?.push(file)
+  }
+  return unused
+}
 
 export const loopMembers = (loop: Loop): string => `${loop.packs.join(", ")} (${String(loop.packs.length)} packs)`
 
@@ -71,10 +86,11 @@ export const docs = (workspace: Workspace): string => {
   lines.push(
     "```",
     "",
-    "| Pack | Layer | Public | Dependencies | Tables | Loop |",
-    "| --- | --- | --- | --- | --- | --- |",
+    "| Pack | Layer | Public | Unused public | Dependencies | Tables | Loop |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
   )
   const loops = referenceLoops(workspace)
+  const unused = unusedPublic(workspace)
   const loopOf = (pack: Pack): string => {
     const at = loops.findIndex((loop) => loop.packs.includes(pack.name))
     return at < 0 ? "none" : String(at + 1)
@@ -84,7 +100,7 @@ export const docs = (workspace: Workspace): string => {
       face === "default" ? cell(paths.map((file) => file.slice(pack.name.length + 1))) : `${face}: ${cell(paths)}`,
     )
     lines.push(
-      `| \`${pack.name}\` | ${pack.layer ?? "none"} | ${faces.join("; ") || "none"} | ${cell(pack.dependencies)} | ${cell(
+      `| \`${pack.name}\` | ${pack.layer ?? "none"} | ${faces.join("; ") || "none"} | ${String(unused.get(pack.name)?.length ?? 0)} | ${cell(pack.dependencies)} | ${cell(
         pack.ownsTables,
       )} | ${loopOf(pack)} |`,
     )

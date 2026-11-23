@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
-import { affected, docs, loopMembers, sarif, starterConfig } from "./report.ts"
+import { affected, docs, loopMembers, sarif, starterConfig, unusedPublic } from "./report.ts"
 import { findings, referenceLoops, todoRules, type Finding, type Loop } from "./rules.ts"
 import { judge, readTodos, writeTodos, type Verdict } from "./todo.ts"
 import { configFile, loadWorkspace, packOf, type Pack, type Workspace } from "./workspace.ts"
@@ -80,6 +80,7 @@ const explain = (workspace: Workspace, name: string, io: Io): number => {
     `enforces: ${rules.join(", ") || "nothing"}`,
     `files: ${String(owned.length)}`,
     `public: ${[...pack.interfaces].map(([face, paths]) => (face === "default" ? paths.join(", ") : `${face}: ${paths.join(", ")}`)).join("; ") || "none"}`,
+    `unused public: ${unusedPublic(workspace).get(pack.name)?.join(", ") || "none"}`,
     `owns tables: ${pack.ownsTables.join(", ") || "none"}`,
     `declared dependencies: ${pack.dependencies.join(", ") || "none"}`,
     `uses: ${counted(outgoing).join(", ") || "nothing"}`,

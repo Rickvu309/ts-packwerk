@@ -1,9 +1,9 @@
 export { runCli } from "./cli.ts"
-export { dependencyCycles, findings, todoRules, type Finding, type RuleName } from "./rules.ts"
+export { dependencyCycles, findings, referenceLoops, todoRules, type Finding, type Loop, type RuleName } from "./rules.ts"
 export { judge, readTodos, writeTodos, type TodoEntry, type Todos, type Verdict } from "./todo.ts"
 export { exportTarget } from "./package-exports.ts"
 export { typeGapsIn, type TypeGap } from "./public-types.ts"
-export { affected, affectedDistances, docs, sarif, unitOf } from "./report.ts"
+export { affected, affectedDistances, docs, sarif, unitOf, unusedPublic } from "./report.ts"
 export { tableUsesIn, type TableUse } from "./tables.ts"
 export {
   configFile,

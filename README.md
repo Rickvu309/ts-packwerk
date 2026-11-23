@@ -74,6 +74,8 @@ dependencies: [packages/mcp#runtime] # may not import the evals interface
 
 `check` also names, after its summary, each loop the real references make between packs of one package, and whether known violations, new ones or unchecked uses close it. A loop is reported, not failed: its undeclared uses are already `dependency` violations, and a loop of declared dependencies fails as `cycle`. `explain` and `docs` show the loop a pack is in.
 
+A public file that no other pack references is listed by `explain` and counted by `docs`, so a public list can shrink to what other packs use. It is reported, not failed.
+
 Type-only imports count, since they couple packs too. Dynamic `import()` counts when its argument is a string literal. `import.meta.glob` counts once per included file its string-literal patterns match, relative to the importing file; a `!` pattern excludes.
 
 ## In the editor
