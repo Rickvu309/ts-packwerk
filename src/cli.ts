@@ -36,8 +36,10 @@ const counted = (items: readonly string[]): string[] => {
 }
 
 const closedBy = (loop: Loop, verdict: Verdict): string => {
-  const closing = ([from, to]: readonly [string, string]) => (finding: Finding) =>
-    finding.rule === "dependency" && finding.fromPack === from && finding.toPack === to
+  const closing =
+    ([from, to]: readonly [string, string]) =>
+    (finding: Finding) =>
+      finding.rule === "dependency" && finding.fromPack === from && finding.toPack === to
   if (loop.undeclared.some((edge) => verdict.fresh.some(closing(edge)))) return "new violations"
   return loop.undeclared.every((edge) => verdict.listed.some(closing(edge))) ? "known violations" : "unchecked uses"
 }
@@ -206,7 +208,8 @@ export const runCli = async (argv: readonly string[], io: Io): Promise<number> =
     io.out(
       `${String(workspace.files.length)} files, ${String(workspace.packs.length)} packs, ${String(verdict.fresh.length)} new violations, ${String(verdict.stale.length)} stale todos, ${String(verdict.listed.length)} known, ${seconds} s`,
     )
-    for (const loop of referenceLoops(workspace)) io.out(`loop through ${closedBy(loop, verdict)}: ${loopMembers(loop)}`)
+    for (const loop of referenceLoops(workspace))
+      io.out(`loop through ${closedBy(loop, verdict)}: ${loopMembers(loop)}`)
   }
   return verdict.fresh.length === 0 && verdict.stale.length === 0 ? 0 : 1
 }

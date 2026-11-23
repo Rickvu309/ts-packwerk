@@ -75,7 +75,8 @@ describe("check and update-todo", () => {
   it("names a loop of real references after the summary, and the loop in explain", async () => {
     repo = makeRepo({
       ...app,
-      "apps/web/src/kit/index.ts": 'import { Editor } from "../editor/index.js"\nexport const button = "button"\nexport const both = Editor\n',
+      "apps/web/src/kit/index.ts":
+        'import { Editor } from "../editor/index.js"\nexport const button = "button"\nexport const both = Editor\n',
     })
     repo.link("apps/web/node_modules/@acme/core", "packages/core")
     expect((await run("update-todo", "--all")).code).toBe(0)

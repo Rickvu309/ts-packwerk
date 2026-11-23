@@ -153,7 +153,8 @@ describe("docs", () => {
 describe("docs loops", () => {
   it("names the loop each pack is in and lists every loop", async () => {
     open({
-      "apps/web/src/kit/index.ts": 'import { Editor } from "../editor/index.js"\nexport const button = "button"\nexport const both = Editor\n',
+      "apps/web/src/kit/index.ts":
+        'import { Editor } from "../editor/index.js"\nexport const button = "button"\nexport const both = Editor\n',
     })
     expect((await run("docs", "--out", "packs.md")).code).toBe(0)
     const page = readFileSync(path.join(repo.root, "packs.md"), "utf8")

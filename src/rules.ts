@@ -225,7 +225,8 @@ export type Loop = {
 const samePackageUses = (workspace: Workspace): Map<string, Set<string>> => {
   const edges = new Map<string, Set<string>>()
   for (const { reference, target, from, to } of crossPack(workspace)) {
-    if (packageRootOf(workspace.packageRoots, reference.file) !== packageRootOf(workspace.packageRoots, target)) continue
+    if (packageRootOf(workspace.packageRoots, reference.file) !== packageRootOf(workspace.packageRoots, target))
+      continue
     edges.set(from.name, (edges.get(from.name) ?? new Set()).add(to.name))
   }
   return edges
@@ -234,18 +235,16 @@ const samePackageUses = (workspace: Workspace): Map<string, Set<string>> => {
 export const referenceLoops = (workspace: Workspace): Loop[] => {
   const edges = samePackageUses(workspace)
   const declared = new Map(workspace.packs.map((pack) => [pack.name, new Set(pack.dependencies)]))
-  return stronglyConnected([...edges.keys()].sort(), (name) => [...(edges.get(name) ?? [])].sort()).flatMap(
-    (packs) => {
-      const members = new Set(packs)
-      const undeclared = packs.flatMap((from) =>
-        [...(edges.get(from) ?? [])]
-          .filter((to) => members.has(to) && declared.get(from)?.has(to) !== true)
-          .sort()
-          .map((to) => [from, to] as const),
-      )
-      return packs.length > 1 && undeclared.length > 0 ? [{ packs, undeclared }] : []
-    },
-  )
+  return stronglyConnected([...edges.keys()].sort(), (name) => [...(edges.get(name) ?? [])].sort()).flatMap((packs) => {
+    const members = new Set(packs)
+    const undeclared = packs.flatMap((from) =>
+      [...(edges.get(from) ?? [])]
+        .filter((to) => members.has(to) && declared.get(from)?.has(to) !== true)
+        .sort()
+        .map((to) => [from, to] as const),
+    )
+    return packs.length > 1 && undeclared.length > 0 ? [{ packs, undeclared }] : []
+  })
 }
 
 const cycleFindings = (workspace: Workspace): Finding[] =>

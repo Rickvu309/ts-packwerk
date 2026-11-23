@@ -105,7 +105,8 @@ export const docs = (workspace: Workspace): string => {
       )} | ${loopOf(pack)} |`,
     )
   }
-  if (loops.length > 0) lines.push("", "## Loops", "", ...loops.map((loop, at) => `${String(at + 1)}. ${loopMembers(loop)}`))
+  if (loops.length > 0)
+    lines.push("", "## Loops", "", ...loops.map((loop, at) => `${String(at + 1)}. ${loopMembers(loop)}`))
   return `${lines.join("\n")}\n`
 }
 
