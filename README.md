@@ -59,6 +59,8 @@ public:
 dependencies: [packages/mcp#runtime] # may not import the evals interface
 ```
 
+The `testing` interface is test support. Only a test file or a `testing/` folder file may import it, and the importing pack must name it in dependencies, as in `apps/api/src/account#testing`; a bare dependency on the pack does not cover it.
+
 ## Rules
 
 | Rule          | Fails when                                                                                                                                                 |
@@ -66,13 +68,14 @@ dependencies: [packages/mcp#runtime] # may not import the evals interface
 | `dependency`  | a file uses a pack in the same package that its pack does not list                                                                                         |
 | `privacy`     | a file imports another pack's file that is not public                                                                                                      |
 | `interface`   | a pack that names interfaces of another pack imports a file outside them                                                                                   |
+| `testing`     | a file outside a test or a `testing/` folder imports another pack's `testing` interface, or the importer's pack does not declare `pack#testing`            |
 | `public_type` | an export reachable from a public file of a pack with `enforce_public_types` has no written type                                                           |
 | `layer`       | a pack uses a pack in a higher layer                                                                                                                       |
 | `table`       | a string or template literal names a table that another pack owns                                                                                          |
 | `cycle`       | pack dependencies form a cycle                                                                                                                             |
 | `package`     | an import names a package missing from the nearest `package.json`, a runtime import names a devDependency, or a relative path reaches into another package |
 
-`dependency`, `privacy`, `interface`, `layer`, `table` and `public_type` violations can be recorded in a pack's `pack_todo.yml`. A recorded violation passes; a fixed one still listed fails as stale until `update-todo` removes it. `update-todo` never records a new violation, so the file only shrinks.
+`dependency`, `privacy`, `interface`, `testing`, `layer`, `table` and `public_type` violations can be recorded in a pack's `pack_todo.yml`. A recorded violation passes; a fixed one still listed fails as stale until `update-todo` removes it. `update-todo` never records a new violation, so the file only shrinks.
 
 `check` also names, after its summary, each loop the real references make between packs of one package, and whether known violations, new ones or unchecked uses close it. A loop is reported, not failed: its undeclared uses are already `dependency` violations, and a loop of declared dependencies fails as `cycle`. `explain` shows the loop a pack is in.
 

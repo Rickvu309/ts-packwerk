@@ -22,6 +22,7 @@ export type Pack = {
   readonly enforceLayers: boolean
   readonly dependencies: readonly string[]
   readonly interfaceDependencies: ReadonlyMap<string, readonly string[]>
+  readonly declaredInterfaces: ReadonlyMap<string, readonly string[]>
   readonly publicPaths: readonly string[]
   readonly interfaces: ReadonlyMap<string, readonly string[]>
   readonly enforcePublicTypes: boolean
@@ -113,14 +114,14 @@ export const readPack = (root: string, manifest: string, config: Config, problem
   }
   const publicPaths = [...new Set([...interfaces.values()].flat())]
   const listedDependencies = strings(raw.dependencies, `${where} dependencies`, problems) ?? []
-  const interfaceDependencies = new Map<string, string[]>()
+  const declaredInterfaces = new Map<string, string[]>()
   for (const entry of listedDependencies) {
     const [pack, face] = entry.split("#")
     if (pack === undefined || face === undefined) continue
-    interfaceDependencies.set(pack, [...(interfaceDependencies.get(pack) ?? []), face])
+    declaredInterfaces.set(pack, [...(declaredInterfaces.get(pack) ?? []), face])
   }
   const bare = new Set(listedDependencies.filter((entry) => !entry.includes("#")))
-  for (const pack of bare) interfaceDependencies.delete(pack)
+  const interfaceDependencies = new Map([...declaredInterfaces].filter(([pack]) => !bare.has(pack)))
   const metadata = raw.metadata
   return {
     name,
@@ -130,6 +131,7 @@ export const readPack = (root: string, manifest: string, config: Config, problem
     enforceLayers: flag(raw.enforce_layers, `${where} enforce_layers`, problems, true),
     dependencies: [...new Set(listedDependencies.map((entry) => entry.split("#")[0] ?? entry))],
     interfaceDependencies,
+    declaredInterfaces,
     publicPaths,
     interfaces,
     enforcePublicTypes: flag(raw.enforce_public_types, `${where} enforce_public_types`, problems, false),

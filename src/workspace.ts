@@ -73,8 +73,10 @@ export const packageRootOf = (packageRoots: readonly string[], file: string): st
   return owner
 }
 
-export const isPublic = (pack: Pack, file: string): boolean =>
-  pack.publicPaths.some((entry) => file === entry || file.startsWith(`${entry.replace(/\/$/, "")}/`))
+export const covers = (paths: readonly string[], file: string): boolean =>
+  paths.some((entry) => file === entry || file.startsWith(`${entry.replace(/\/$/, "")}/`))
+
+export const isPublic = (pack: Pack, file: string): boolean => covers(pack.publicPaths, file)
 
 type Request = { specifier: string; offset: number; typeOnly: boolean; reexport: boolean }
 

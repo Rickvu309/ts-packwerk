@@ -12,6 +12,7 @@ const pack = (name: string, extra: Partial<Pack> = {}): Pack => ({
   publicPaths: [`${name}/index.ts`],
   interfaces: new Map([["default", [`${name}/index.ts`]]]),
   interfaceDependencies: new Map(),
+  declaredInterfaces: new Map(),
   enforcePublicTypes: false,
   ownsTables: [],
   metadata: {},
@@ -148,6 +149,98 @@ describe("findings", () => {
     )
     expect(rules({ ...space, config: { ...space.config, tests: true } })).toEqual([
       "privacy app/editor/editor.test.ts -> app/kit/hidden.ts",
+    ])
+  })
+})
+
+describe("the testing interface", () => {
+  const support = (name = "app/kit"): Pack =>
+    pack(name, {
+      publicPaths: [`${name}/index.ts`, `${name}/testing/fixtures.ts`],
+      interfaces: new Map([
+        ["default", [`${name}/index.ts`]],
+        ["testing", [`${name}/testing/fixtures.ts`]],
+      ]),
+    })
+
+  const importer = (name = "app/editor", extra: Partial<Pack> = {}): Pack =>
+    pack(name, { dependencies: ["app/kit"], ...extra })
+
+  const messages = (space: Workspace) => findings(space).map((item) => `${item.rule}: ${item.message}`)
+
+  it("lets a test of a pack that declares the interface use it", () => {
+    const space = workspace(
+      [importer("app/editor", { declaredInterfaces: new Map([["app/kit", ["testing"]]]) }), support()],
+      [uses("app/editor/editor.test.ts", "app/kit/testing/fixtures.ts")],
+    )
+    expect(messages(space)).toEqual([])
+  })
+
+  it("lets a testing/ file of a pack that declares the interface use it", () => {
+    const space = workspace(
+      [importer("app/editor", { declaredInterfaces: new Map([["app/kit", ["testing"]]]) }), support()],
+      [uses("app/editor/testing/setup.ts", "app/kit/testing/fixtures.ts")],
+    )
+    expect(messages(space)).toEqual([])
+  })
+
+  it("flags a product file for importing test support it has not declared", () => {
+    const space = workspace([importer(), support()], [uses("app/editor/editor.ts", "app/kit/testing/fixtures.ts")])
+    expect(messages(space)).toEqual([
+      "testing: app/kit/testing/fixtures.ts is test support in app/kit; import it only from a test or a testing/ file",
+      "testing: app/editor uses app/kit's testing interface (app/kit/testing/fixtures.ts) without declaring it; add app/kit#testing to app/editor/pack.yml dependencies",
+    ])
+  })
+
+  it("flags a test that imports an undeclared interface", () => {
+    const space = workspace([importer(), support()], [uses("app/editor/editor.test.ts", "app/kit/testing/fixtures.ts")])
+    expect(messages(space)).toEqual([
+      "testing: app/editor uses app/kit's testing interface (app/kit/testing/fixtures.ts) without declaring it; add app/kit#testing to app/editor/pack.yml dependencies",
+    ])
+  })
+
+  it("flags the owning pack's product code importing its own test support, without asking for a declaration", () => {
+    const space = workspace([support()], [uses("app/kit/product.ts", "app/kit/testing/fixtures.ts")])
+    expect(messages(space)).toEqual([
+      "testing: app/kit/testing/fixtures.ts is test support in app/kit; import it only from a test or a testing/ file",
+    ])
+  })
+
+  it("keeps a bare dependency from erasing a declared testing interface", () => {
+    const declared = { declaredInterfaces: new Map([["app/kit", ["testing"]]]) }
+    const space = workspace([importer("app/editor", declared), support()], [
+      uses("app/editor/editor.ts", "app/kit/testing/fixtures.ts"),
+      uses("app/editor/editor.test.ts", "app/kit/testing/fixtures.ts"),
+    ])
+    expect(messages(space)).toEqual([
+      "testing: app/kit/testing/fixtures.ts is test support in app/kit; import it only from a test or a testing/ file",
+    ])
+  })
+
+  it("holds a declared interface, not a folder name", () => {
+    const space = workspace(
+      [
+        pack("app/editor", { dependencies: ["app/kit"] }),
+        pack("app/kit", {
+          publicPaths: ["app/kit/index.ts", "app/kit/testing/fixtures.ts"],
+          interfaces: new Map([["default", ["app/kit/index.ts", "app/kit/testing/fixtures.ts"]]]),
+        }),
+      ],
+      [uses("app/editor/editor.ts", "app/kit/testing/fixtures.ts")],
+    )
+    expect(messages(space)).toEqual([])
+  })
+
+  it("lets a pack opt out of enforcing its declared dependencies", () => {
+    const space = workspace(
+      [pack("app/editor", { dependencies: ["app/kit"], enforceDependencies: false }), support()],
+      [
+        uses("app/editor/editor.test.ts", "app/kit/testing/fixtures.ts"),
+        uses("app/editor/editor.ts", "app/kit/testing/fixtures.ts"),
+      ],
+    )
+    expect(messages(space)).toEqual([
+      "testing: app/kit/testing/fixtures.ts is test support in app/kit; import it only from a test or a testing/ file",
     ])
   })
 })

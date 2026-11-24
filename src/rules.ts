@@ -1,7 +1,16 @@
 import { isTestPath } from "./manifests.ts"
-import { isPublic, manifestFile, packageRootOf, packOf, type Pack, type Workspace } from "./workspace.ts"
+import { covers, isPublic, manifestFile, packageRootOf, packOf, type Pack, type Workspace } from "./workspace.ts"
 
-export type RuleName = "dependency" | "privacy" | "interface" | "layer" | "table" | "public_type" | "package" | "cycle"
+export type RuleName =
+  | "dependency"
+  | "privacy"
+  | "interface"
+  | "testing"
+  | "layer"
+  | "table"
+  | "public_type"
+  | "package"
+  | "cycle"
 
 export type Finding = {
   readonly rule: RuleName
@@ -18,6 +27,7 @@ export const todoRules: ReadonlySet<RuleName> = new Set([
   "dependency",
   "privacy",
   "interface",
+  "testing",
   "layer",
   "table",
   "public_type",
@@ -65,7 +75,7 @@ const packFindings = (workspace: Workspace): Finding[] =>
     const faces = from.interfaceDependencies.get(to.name)
     if (faces !== undefined && isPublic(to, target)) {
       const allowed = faces.flatMap((face) => to.interfaces.get(face) ?? [])
-      if (!allowed.some((entry) => target === entry || target.startsWith(`${entry.replace(/\/$/, "")}/`))) {
+      if (!covers(allowed, target)) {
         found.push({
           ...at,
           rule: "interface",
@@ -104,6 +114,41 @@ const pathFindings = (workspace: Workspace): Finding[] =>
         message: `${reference.specifier} reaches into ${toRoot} by path; import it by its package name`,
       },
     ]
+  })
+
+const testingFindings = (workspace: Workspace): Finding[] =>
+  workspace.references.flatMap((reference) => {
+    if (reference.target.kind !== "file") return []
+    const target = reference.target.file
+    const to = packOf(workspace.packs, target)
+    if (to === undefined || !covers(to.interfaces.get("testing") ?? [], target)) return []
+    const from = packOf(workspace.packs, reference.file)
+    if (from === undefined) return []
+    const at = {
+      file: reference.file,
+      line: reference.line,
+      column: reference.column,
+      fromPack: from.name,
+      toPack: to.name,
+      target,
+    }
+    const found: Finding[] = []
+    if (!isTestPath(reference.file)) {
+      found.push({
+        ...at,
+        rule: "testing",
+        message: `${target} is test support in ${to.name}; import it only from a test or a testing/ file`,
+      })
+    }
+    const declaresTesting = from.declaredInterfaces.get(to.name)?.includes("testing") === true
+    if (from !== to && from.enforceDependencies && !declaresTesting) {
+      found.push({
+        ...at,
+        rule: "testing",
+        message: `${from.name} uses ${to.name}'s testing interface (${target}) without declaring it; add ${to.name}#testing to ${from.name}/pack.yml dependencies`,
+      })
+    }
+    return found
   })
 
 const packageFindings = (workspace: Workspace): Finding[] =>
@@ -273,6 +318,7 @@ export const findings = (workspace: Workspace): Finding[] =>
   [
     ...cycleFindings(workspace),
     ...packFindings(workspace),
+    ...testingFindings(workspace),
     ...tableFindings(workspace),
     ...publicTypeFindings(workspace),
     ...pathFindings(workspace),

@@ -99,3 +99,55 @@ describe("check and update-todo", () => {
     expect(result.out).toContain("public: apps/web/src/kit/index.ts")
   })
 })
+
+describe("the testing interface", () => {
+  const kitWithFixtures = {
+    ...app,
+    "apps/web/src/kit/pack.yml": "layer: platform\npublic:\n  default: [index.ts, theme.ts]\n  testing: [testing/fixtures.ts]\n",
+    "apps/web/src/kit/testing/fixtures.ts": "export const fixtures = 1\n",
+    "apps/web/src/editor/pack.yml":
+      "layer: feature\ndependencies: [apps/web/src/kit, apps/web/src/kit#testing]\n",
+    "apps/web/src/editor/editor.test.ts":
+      'import { fixtures } from "../kit/testing/fixtures.js"\nexport const test = fixtures\n',
+  }
+
+  it("passes a test that uses a declared testing interface", async () => {
+    repo = makeRepo(kitWithFixtures)
+    repo.link("apps/web/node_modules/@acme/core", "packages/core")
+    const result = await run("check")
+    expect(result.out).toContain("0 new violations, 0 stale todos")
+    expect(result.code).toBe(0)
+  })
+
+  it("fails a product import of test support, and records it in pack_todo.yml", async () => {
+    repo = makeRepo(kitWithFixtures)
+    repo.link("apps/web/node_modules/@acme/core", "packages/core")
+    repo.write(
+      "apps/web/src/editor/plant.ts",
+      'import { fixtures } from "../kit/testing/fixtures.js"\nexport const plant = fixtures\n',
+    )
+    const planted = await run("check")
+    expect(planted.code).toBe(1)
+    expect(planted.out).toContain(
+      "apps/web/src/editor/plant.ts:1:26  testing  apps/web/src/kit/testing/fixtures.ts is test support in apps/web/src/kit; import it only from a test or a testing/ file",
+    )
+    expect(planted.out).not.toContain("plant.ts:1:26  testing  apps/web/src/editor uses")
+    expect((await run("update-todo", "--all")).code).toBe(0)
+    const todo = readFileSync(path.join(repo.root, "apps/web/src/editor/pack_todo.yml"), "utf8")
+    expect(todo).toContain("violations:\n      - testing")
+    expect((await run("check")).out).toContain("0 new violations, 0 stale todos, 1 known")
+  })
+
+  it("fails a test import the importer has not declared", async () => {
+    repo = makeRepo({
+      ...kitWithFixtures,
+      "apps/web/src/editor/pack.yml": "layer: feature\ndependencies: [apps/web/src/kit]\n",
+    })
+    repo.link("apps/web/node_modules/@acme/core", "packages/core")
+    const result = await run("check")
+    expect(result.code).toBe(1)
+    expect(result.out).toContain(
+      "apps/web/src/editor/editor.test.ts:1:26  testing  apps/web/src/editor uses apps/web/src/kit's testing interface (apps/web/src/kit/testing/fixtures.ts) without declaring it; add apps/web/src/kit#testing to apps/web/src/editor/pack.yml dependencies",
+    )
+  })
+})

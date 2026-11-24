@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- A pack's `testing` interface is test support: a file outside a test or a `testing/` folder may not import it, and the importing pack must declare `pack#testing` in its dependencies, which a bare dependency does not cover. Both fail as the new `testing` rule, which `pack_todo.yml` can record.
+
 ## 0.1.4
 
 - `tests: true` checks test files and `testing/` folders that `exclude` would drop. A test is held to its pack's dependencies, may import that pack's private files, and may import a devDependency of its package or of the repository root. `test_exempt` leaves named tests unchecked.

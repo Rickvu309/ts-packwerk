@@ -1,6 +1,6 @@
 {
   "name": "ts-packwerk",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Packs for TypeScript: dependencies, privacy, layers, named interfaces and table ownership, checked in under a second. After Shopify's Packwerk.",
   "keywords": [
     "packwerk",
@@ -26,7 +26,7 @@
     "node": ">=24"
   },
   "bin": {
-    "ts-packwerk": "./bin/ts-packwerk.js"
+    "ts-packwerk": "bin/ts-packwerk.js"
   },
   "exports": {
     ".": {

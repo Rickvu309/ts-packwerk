@@ -12,3 +12,4 @@ One public entry per pack forces every caller to depend on everything it exports
 
 - A list under `public` is the interface `default`.
 - A dependency on the pack itself, with no `#`, allows every interface.
+- `testing` names test support. Only a test file or a `testing/` file may import it, and the importing pack must declare `pack#testing` in its dependencies; a bare dependency on the pack does not cover it. Both fail as `testing`.
