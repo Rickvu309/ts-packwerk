@@ -1,3 +1,4 @@
+import { isTestPath } from "./manifests.ts"
 import { isPublic, manifestFile, packageRootOf, packOf, type Pack, type Workspace } from "./workspace.ts"
 
 export type RuleName = "dependency" | "privacy" | "interface" | "layer" | "table" | "public_type" | "package" | "cycle"
@@ -110,7 +111,7 @@ const packageFindings = (workspace: Workspace): Finding[] =>
     const target = reference.target
     const declared = target.kind === "package" || target.kind === "file" ? target.declared : undefined
     if (declared === undefined || declared === "runtime") return []
-    if (declared === "dev" && reference.typeOnly) return []
+    if (declared === "dev" && (reference.typeOnly || (workspace.config.tests && isTestPath(reference.file)))) return []
     const name =
       target.kind === "package"
         ? target.name

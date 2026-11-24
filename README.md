@@ -30,6 +30,8 @@ include: ["apps/*/src/**/*.{ts,tsx}"]
 exclude: ["**/*.test.ts"]
 layers: [app, legacy, feature, platform] # top to bottom; a pack may use its own layer or lower
 table_exempt: ["src/migrations.ts"] # files that may name any table, such as migrations
+tests: true # also check test files and testing/ folders that exclude would drop
+test_exempt: ["src/read-source.test.ts"] # tests that read the repo on purpose
 ```
 
 ## pack.yml
@@ -75,6 +77,8 @@ dependencies: [packages/mcp#runtime] # may not import the evals interface
 `check` also names, after its summary, each loop the real references make between packs of one package, and whether known violations, new ones or unchecked uses close it. A loop is reported, not failed: its undeclared uses are already `dependency` violations, and a loop of declared dependencies fails as `cycle`. `explain` shows the loop a pack is in.
 
 A public file that no other pack references is listed by `explain`, so a public list can shrink to what other packs use. It is reported, not failed.
+
+With `tests: true`, a file that `include` matches and `exclude` would drop is checked when it is a test (`*.test.ts`, `*.spec.ts`, and the same for `.tsx`, `.mts`, `.cts`) or lives in a `testing` folder. It is held to its pack's dependencies. It may import that pack's private files. It may import a devDependency of the nearest package, or of the repository root. `test_exempt` names tests that stay unchecked, such as a test that reads source across the repo on purpose. `tests` defaults to false, so an exclude of `**/*.test.ts` keeps today's behavior.
 
 Type-only imports count, since they couple packs too. Dynamic `import()` counts when its argument is a string literal. `import.meta.glob` counts once per included file its string-literal patterns match, relative to the importing file; a `!` pattern excludes.
 

@@ -10,6 +10,8 @@ export type Config = {
   readonly exclude: readonly string[]
   readonly layers: readonly string[]
   readonly tableExempt: readonly string[]
+  readonly tests: boolean
+  readonly testExempt: readonly string[]
 }
 
 export type Pack = {
@@ -32,7 +34,12 @@ const defaultConfig: Config = {
   exclude: ["**/node_modules/**", "**/dist/**"],
   layers: [],
   tableExempt: [],
+  tests: false,
+  testExempt: [],
 }
+
+export const isTestPath = (file: string): boolean =>
+  /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(file) || file.split("/").includes("testing")
 
 const defaultPublic = ["index.ts", "index.tsx", "src/index.ts", "src/index.tsx"]
 
@@ -68,6 +75,8 @@ export const readConfig = (root: string, problems: string[]): Config => {
     exclude: [...defaultConfig.exclude, ...(strings(raw.exclude, `${configFile} exclude`, problems) ?? [])],
     layers: strings(raw.layers, `${configFile} layers`, problems) ?? defaultConfig.layers,
     tableExempt: strings(raw.table_exempt, `${configFile} table_exempt`, problems) ?? defaultConfig.tableExempt,
+    tests: flag(raw.tests, `${configFile} tests`, problems, false),
+    testExempt: strings(raw.test_exempt, `${configFile} test_exempt`, problems) ?? defaultConfig.testExempt,
   }
 }
 

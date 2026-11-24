@@ -30,7 +30,14 @@ const uses = (file: string, target: string, specifier = "./x.js"): Reference => 
 
 const workspace = (packs: Pack[], references: Reference[], packageRoots = ["app"]): Workspace => ({
   root: "/repo",
-  config: { include: [], exclude: [], layers: ["app", "legacy", "feature", "platform"], tableExempt: [] },
+  config: {
+    include: [],
+    exclude: [],
+    layers: ["app", "legacy", "feature", "platform"],
+    tableExempt: [],
+    tests: false,
+    testExempt: [],
+  },
   packs,
   files: [],
   references,
@@ -112,6 +119,36 @@ describe("findings", () => {
       ],
     )
     expect(rules(space)).toEqual(["package app/a.ts -> vitest", "package app/a.ts -> left-pad"])
+  })
+
+  it("lets a test use a devDependency, and still flags one in product code", () => {
+    const reference = (file: string, name: string): Reference => ({
+      ...uses(file, ""),
+      specifier: name,
+      target: { kind: "package", name, declared: "dev" },
+    })
+    const space = workspace(
+      [],
+      [
+        reference("app/a.test.ts", "vitest"),
+        reference("app/testing/harness.ts", "fast-check"),
+        reference("app/a.ts", "vitest"),
+      ],
+    )
+    expect(rules({ ...space, config: { ...space.config, tests: true } })).toEqual(["package app/a.ts -> vitest"])
+  })
+
+  it("lets a test use its own pack's private files and flags another pack's", () => {
+    const space = workspace(
+      [pack("app/editor", { dependencies: ["app/kit"] }), pack("app/kit")],
+      [
+        uses("app/editor/editor.test.ts", "app/editor/editor.ts"),
+        uses("app/editor/editor.test.ts", "app/kit/hidden.ts"),
+      ],
+    )
+    expect(rules({ ...space, config: { ...space.config, tests: true } })).toEqual([
+      "privacy app/editor/editor.test.ts -> app/kit/hidden.ts",
+    ])
   })
 })
 

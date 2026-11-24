@@ -4,6 +4,7 @@ import path from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { app, makeRepo, type Repo } from "./fixture.ts"
 import { tableUsesIn } from "./tables.ts"
+import { findings } from "./rules.ts"
 import { loadWorkspace, packOf } from "./workspace.ts"
 
 let repo: Repo
@@ -91,6 +92,32 @@ describe("loadWorkspace", () => {
       "apps/web/src/kit/pack.yml public path apps/web/src/kit/missing.ts does not exist",
       "apps/web/src/kit/pack.yml depends on apps/web/src/ghost, which is not a pack",
     ])
+  })
+})
+
+describe("test mode", () => {
+  const withTests = `${app["packwerk.yml"]}exclude:\n  - "**/*.test.ts"\n  - "apps/web/src/testing/**"\ntests: true\ntest_exempt:\n  - "apps/web/src/editor/read-source.test.ts"\n`
+
+  it("checks an excluded test against its pack and lets it use that pack's private files", async () => {
+    const workspace = await open({
+      "packwerk.yml": withTests,
+      "package.json": JSON.stringify({ name: "root", private: true, devDependencies: { "fast-check": "1" } }),
+      "apps/web/src/editor/editor.test.ts":
+        'import { Editor } from "./editor.js"\nimport { hidden } from "../kit/hidden.js"\nimport { it } from "vitest"\nexport const checked = [Editor, hidden, it]\n',
+      "apps/web/src/editor/read-source.test.ts": 'import { hidden } from "../kit/hidden.js"\nexport const read = hidden\n',
+      "apps/web/src/kit/hidden.ts": "export const hidden = 1\n",
+      "apps/web/src/testing/harness.ts": 'import { Editor } from "../editor/index.js"\nexport const harness = Editor\n',
+      "packages/core/src/core.test.ts": 'import { it } from "fast-check"\nexport const checked = it\n',
+    })
+    expect(workspace.problems).toEqual([])
+    expect(workspace.files).toContain("apps/web/src/editor/editor.test.ts")
+    expect(workspace.files).toContain("apps/web/src/testing/harness.ts")
+    expect(workspace.files).toContain("packages/core/src/core.test.ts")
+    expect(workspace.files).not.toContain("apps/web/src/editor/read-source.test.ts")
+    const found = findings(workspace)
+      .filter((item) => item.file.endsWith(".test.ts") || item.file.endsWith("harness.ts"))
+      .map((item) => `${item.rule} ${item.file} -> ${item.target}`)
+    expect(found).toEqual(["privacy apps/web/src/editor/editor.test.ts -> apps/web/src/kit/hidden.ts"])
   })
 })
 

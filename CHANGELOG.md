@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- `tests: true` checks test files and `testing/` folders that `exclude` would drop. A test is held to its pack's dependencies, may import that pack's private files, and may import a devDependency of its package or of the repository root. `test_exempt` leaves named tests unchecked.
+
 ## 0.1.3
 
 - The `docs` page says it is written from every `pack.yml`, which is what it reads since 0.1.2.

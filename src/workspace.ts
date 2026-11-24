@@ -12,12 +12,15 @@ import {
   configFile,
   manifestFile,
   posix,
+  isTestPath,
   readConfig,
   readPack,
   skipDirectory,
   type Config,
   type Pack,
 } from "./manifests.ts"
+
+export { isTestPath }
 
 export { configFile, manifestFile, readConfig, type Config, type Pack }
 export const todoFile = "pack_todo.yml"
@@ -177,9 +180,15 @@ export const openSetup = (given: string) => {
     }
   }
 
+  const matches = (file: string, patterns: readonly string[]) =>
+    patterns.some((pattern) => path.matchesGlob(file, pattern))
   const files = globSync([...config.include], { cwd: root, exclude: (entry) => skipDirectory(path.basename(entry)) })
     .map(posix)
-    .filter((file) => !config.exclude.some((pattern) => path.matchesGlob(file, pattern)))
+    .filter((file) => {
+      if (matches(file, config.testExempt)) return false
+      const excluded = matches(file, config.exclude)
+      return !excluded || (config.tests && isTestPath(file))
+    })
     .sort()
   const fileSet = new Set(files)
 
@@ -272,10 +281,12 @@ export const openSetup = (given: string) => {
     return target === undefined ? undefined : toSource(path.join(found.directory, target))
   }
 
+  const rootDev = nearestManifest(root)?.dev ?? new Set<string>()
   const declaredIn = (file: string, name: string): Declared => {
     const manifest = nearestManifest(path.dirname(path.join(root, file)))
     if (manifest === undefined || manifest.name === name || manifest.runtime.has(name)) return "runtime"
-    return manifest.dev.has(name) ? "dev" : "missing"
+    if (manifest.dev.has(name)) return "dev"
+    return config.tests && isTestPath(file) && rootDev.has(name) ? "dev" : "missing"
   }
 
   const classify = (file: string, specifier: string, resolved: ResolveResult): Target => {
